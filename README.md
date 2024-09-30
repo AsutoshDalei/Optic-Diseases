@@ -17,5 +17,5 @@ Each class contains approximately 1,000 images, providing a balanced dataset for
 * Ocular Recognition: A database focused on ocular disease recognition
 * HRF: High-Resolution Fundus dataset
 
-Source of Dataset:
-*https://www.kaggle.com/datasets/gunavenkatdoddi/eye-diseases-classification/data*# Optic-Diseases
+Source of Data:
+https://www.kaggle.com/datasets/gunavenkatdoddi/eye-diseases-classification/data
