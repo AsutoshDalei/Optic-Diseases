@@ -47,3 +47,211 @@ ResNet, a state-of-the-art deep learning architecture, was fine-tuned for this t
 
 Among the models tested, the **ResNet model with transfer learning** achieved the highest performance across all metrics, demonstrating superior ability in classifying retinal images. This makes it the most effective model for detecting eye diseases in this project.
 
+## API Deployment
+
+This project includes a production-ready Flask API for serving the trained model predictions via REST endpoints.
+
+### Project Structure
+
+```
+/
+├── api/                    # Flask API application
+│   ├── __init__.py
+│   ├── main.py            # Flask app factory
+│   ├── routes.py          # API endpoints (Blueprint)
+│   ├── schemas.py         # Response helpers
+│   └── exceptions.py      # Custom exceptions
+├── src/                    # Core application logic
+│   ├── __init__.py
+│   ├── config.py          # Configuration management
+│   ├── inference.py       # Model loading and prediction
+│   └── preprocessing.py   # Image preprocessing
+├── docker/
+│   └── Dockerfile         # Production Dockerfile
+├── models/                 # Model files (ResNet50Model.pth)
+├── docker-compose.yml      # Docker Compose configuration
+├── requirements.txt        # Python dependencies
+├── app.py                 # Application entry point
+└── README.md
+```
+
+### Prerequisites
+
+- Docker and Docker Compose installed
+- ResNet50 model file (`ResNet50Model.pth`) placed in the `models/` directory
+
+### Quick Start with Docker
+
+1. **Place the model file**:
+   ```bash
+   # Ensure ResNet50Model.pth is in the models/ directory
+   ls models/ResNet50Model.pth
+   ```
+
+2. **Start the API service**:
+   ```bash
+   docker-compose up --build
+   ```
+
+3. **Verify the service is running**:
+   ```bash
+   curl http://localhost:5000/api/health
+   ```
+
+The API will be available at `http://localhost:5000`
+
+### API Endpoints
+
+#### Health Check
+
+**GET** `/api/health`
+
+Check the health status of the API and model loading status.
+
+**Response**:
+```json
+{
+  "status": "healthy",
+  "service": "ocular-disease-classification-api",
+  "model_loaded": true
+}
+```
+
+#### Prediction
+
+**POST** `/api/predict`
+
+Classify an ocular disease from a retinal image.
+
+**Request**:
+- Method: `POST`
+- Content-Type: `multipart/form-data`
+- Body: Form data with `image` field containing the image file
+
+**Supported formats**: PNG, JPG, JPEG, BMP, TIFF
+**Max file size**: 10MB
+
+**Example using curl**:
+```bash
+curl -X POST http://localhost:5000/api/predict \
+  -F "image=@/path/to/retinal_image.jpg"
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "prediction": {
+    "class": "normal",
+    "confidence": 0.9234,
+    "probabilities": {
+      "cataract": 0.0123,
+      "diabetic_retinopathy": 0.0456,
+      "glaucoma": 0.0187,
+      "normal": 0.9234
+    }
+  }
+}
+```
+
+**Error Response**:
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Invalid image format or size",
+    "code": "INVALID_IMAGE"
+  }
+}
+```
+
+### Configuration
+
+Configuration can be managed via environment variables or a `.env` file. See `.env.example` for available options:
+
+- `MODEL_PATH`: Path to the model file (default: `models/ResNet50Model.pth`)
+- `MODEL_TYPE`: Model type - `pytorch` (default)
+- `IMAGE_SIZE`: Target image size - `224,224` (default)
+- `CLASS_NAMES`: Comma-separated class names
+- `API_HOST`: API host address (default: `0.0.0.0`)
+- `API_PORT`: API port (default: `5000`)
+- `LOG_LEVEL`: Logging level (default: `INFO`)
+- `MODEL_DEVICE`: Device for inference - `cpu` or `cuda` (default: `cpu`)
+- `MAX_IMAGE_SIZE`: Maximum image file size in bytes (default: `10485760`)
+
+### Local Development Setup
+
+1. **Create a virtual environment**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Set environment variables**:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+4. **Run the application**:
+   ```bash
+   python app.py
+   ```
+
+   Or using gunicorn for production-like setup:
+   ```bash
+   gunicorn --bind 0.0.0.0:5000 --workers 2 app:app
+   ```
+
+### Docker Configuration
+
+The Docker setup uses a multi-stage build for optimized image size and includes:
+
+- Python 3.10 slim base image
+- Non-root user for security
+- Health checks
+- Gunicorn WSGI server with 2 workers
+- Automatic restart policies
+
+### Model Requirements
+
+The API expects a ResNet50 PyTorch model file (`.pth`) trained for 4-class classification:
+1. cataract
+2. diabetic_retinopathy
+3. glaucoma
+4. normal
+
+The model should accept input images of size 224x224 and output logits for 4 classes.
+
+### Troubleshooting
+
+**Model not found error**:
+- Ensure `ResNet50Model.pth` exists in the `models/` directory
+- Check the `MODEL_PATH` environment variable matches the actual file location
+
+**Image upload errors**:
+- Verify the image format is supported (PNG, JPG, JPEG, BMP, TIFF)
+- Check that the file size is under 10MB
+- Ensure the image is a valid image file
+
+**API not responding**:
+- Check Docker container logs: `docker-compose logs api`
+- Verify the port 5000 is not already in use
+- Check health endpoint: `curl http://localhost:5000/api/health`
+
+### Production Deployment
+
+For production deployment, consider:
+
+- Using a reverse proxy (nginx) in front of the API
+- Setting up SSL/TLS certificates
+- Configuring proper logging and monitoring
+- Using GPU support by setting `MODEL_DEVICE=cuda` and ensuring CUDA is available
+- Scaling with multiple worker processes or containers
+- Setting up proper backup and recovery procedures
+
